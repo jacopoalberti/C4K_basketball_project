@@ -1,0 +1,33 @@
+<h1>Game Dashboard</h1>
+
+
+<h3>Select Player</h3>
+<select id="player">
+  {% for player in players %}
+    <option value="{{ player.id }}">{{ player.name }}</option>
+  {% endfor %}
+</select>
+
+<br><br>
+
+<input type="text" id="newPlayerName" placeholder="New player name">
+<button onclick="addPlayer()">Add Player</button>
+
+<hr>
+
+
+<h3>Select Zone</h3>
+<div>
+  {% for zone in zones %}
+    <button onclick="selectZone({{ zone.id }})">
+      {{ zone.name }}
+    </button>
+  {% endfor %}
+</div>
+
+<hr>
+
+
+<h3>Result</h3>
+<button onclick="submitShot(true)">MAKE</button>
+<button onclick="submitShot(false)">MISS</button>
