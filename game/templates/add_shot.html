@@ -1,8 +1,8 @@
 <h1>Game Dashboard</h1>
 
-
 <h3>Select Player</h3>
 <select id="player">
+  <option value="">-- Select player --</option>
   {% for player in players %}
     <option value="{{ player.id }}">{{ player.name }}</option>
   {% endfor %}
@@ -11,15 +11,14 @@
 <br><br>
 
 <input type="text" id="newPlayerName" placeholder="New player name">
-<button onclick="addPlayer()">Add Player</button>
+<button type="button" onclick="submitShot(false, true)">Add Player</button>
 
 <hr>
-
 
 <h3>Select Zone</h3>
 <div>
   {% for zone in zones %}
-    <button onclick="selectZone({{ zone.id }})">
+    <button id="zone-{{ zone.id }}" type="button" onclick="selectZone({{ zone.id }})">
       {{ zone.name }}
     </button>
   {% endfor %}
@@ -27,7 +26,82 @@
 
 <hr>
 
-
 <h3>Result</h3>
-<button onclick="submitShot(true)">MAKE</button>
-<button onclick="submitShot(false)">MISS</button>
+<button type="button" onclick="submitShot(true)">MAKE</button>
+<button type="button" onclick="submitShot(false)">MISS</button>
+
+<hr>
+
+<script>
+let selectedZone = null;
+
+function selectZone(zoneId) {
+    selectedZone = zoneId;
+}
+
+function submitShot(made, createPlayerOnly=false) {
+    const playerId = document.getElementById("player").value;
+    const newPlayerName = document.getElementById("newPlayerName").value.trim();
+
+    if (!playerId && !newPlayerName) {
+        alert("Select a player or enter a new player name!");
+        return;
+    }
+
+    if (!selectedZone && !createPlayerOnly) {
+        alert("Select a zone first!");
+        return;
+    }
+
+    const bodyData = `player=${playerId}&new_player=${encodeURIComponent(newPlayerName)}` +
+                     (createPlayerOnly ? "" : `&zone=${selectedZone}&made=${made}`);
+
+    fetch("", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: bodyData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "ok") {
+            updateHeatmap();
+            document.getElementById("newPlayerName").value = "";
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(err => {
+        console.error("Error:", err);
+        alert("An error occurred");
+    });
+}
+
+function updateHeatmap() {
+    fetch("/stats/")
+    .then(response => response.json())
+    .then(data => {
+        data.forEach(zone => {
+            const button = document.getElementById(`zone-${zone.zone_id}`);
+            if (!button) return;
+
+            const pct = zone.percentage;
+            let color;
+
+            if (pct > 70) color = "green";
+            else if (pct > 40) color = "yellow";
+            else color = "red";
+
+            button.style.backgroundColor = color;
+            button.innerText = `${zone.zone_name}\n${pct.toFixed(0)}% | ${zone.points} pts`;
+        });
+    })
+    .catch(err => console.error(err));
+}
+
+window.onload = function() {
+    updateHeatmap();
+};
+</script>
