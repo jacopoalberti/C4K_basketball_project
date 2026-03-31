@@ -16,13 +16,106 @@
 <hr>
 
 <h3>Select Zone</h3>
-<div>
-  {% for zone in zones %}
-    <button id="zone-{{ zone.id }}" type="button" onclick="selectZone({{ zone.id }})">
-      {{ zone.name }}
-    </button>
-  {% endfor %}
+<div class="court">
+    <div class="backboard"></div>
+    <div class="hoop"></div>
+    <div class="key"></div>
+    <div class="free-throw-circle"></div>
+    <div class="arc"></div>
+
+    {% for zone in zones %}
+        <button id="zone-{{ zone.id }}" class="zone zone-{{ zone.id}}" onclick="selectZone({{ zone.id }})">
+            {{ zone.name }}
+        </button>
+    {% endfor %}
 </div>
+
+<style>
+.court {
+    position: relative;
+    width: 500px;
+    height: 450px;
+    margin: 20px auto;
+    background: #e8c999;
+    border: 4px solid black;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+/* hoop */
+.hoop {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    width: 50px;
+    height: 6px;
+    background: orange;
+    transform: translateX(-50%);
+}
+
+/* free throw key */
+.key {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    width: 180px;
+    height: 180px;
+    border: 3px solid black;
+    transform: translateX(-50%);
+}
+
+/* free throw circle */
+.free-throw-circle {
+    position: absolute;
+    top: 180px;
+    left: 50%;
+    width: 120px;
+    height: 120px;
+    border: 3px solid black;
+    border-radius: 50%;
+    transform: translateX(-50%);
+}
+
+/* 3 point arc */
+.arc {
+    position: absolute;
+    top: -80px;
+    left: 50%;
+    width: 420px;
+    height: 420px;
+    border: 3px solid black;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    clip-path: inset(50% 0 0 0);
+}
+
+
+/* zone circles */
+.zone {
+    position: absolute;
+    width: 65px;
+    height: 65px;
+    border-radius: 50%;
+    background: lightgray;
+    border: 2px solid black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* zone position */
+.zone-2 { top: 80px; left: 55px; }
+.zone-1 { top: 80px; left: 50%; transform: translateX(-50%); }
+.zone-3 { top: 80px; right: 55px; }
+
+.zone-4 { top: 220px; left: 55px; }
+.zone-6 { top: 220px; right: 55px; }
+
+.zone-5 { top: 350px; left: 50%; transform: translateX(-50%); }
+</style>
 
 <hr>
 
