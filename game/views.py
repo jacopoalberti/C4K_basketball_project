@@ -43,8 +43,19 @@ def add_shot(request):
 
 
 def get_stats(request):
+    player_id = request.GET.get("player")
+    shots = Shot.objects.all()
+    if player_id:
+        try:
+            shots = shots.filter(player_id=int(player_id))
+        except ValueError:
+            return JsonResponse({"status": "error", "message": "Invalid player ID"}, status=400)
+    else:
+        return JsonResponse([], safe=False)
+
+
     stats = (
-        Shot.objects
+        shots
         .values("zone__id", "zone__name")
         .annotate(
             total=Count("id"),
