@@ -86,4 +86,14 @@ def get_stats(request):
             "points": points
         })
 
+
+
     return JsonResponse(result, safe=False)
+
+
+
+def reset_session(request):
+    if request.method == "POST":
+        Shot.objects.all().delete()
+        Player.objects.all().delete()
+        return JsonResponse({"status": "ok"})

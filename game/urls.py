@@ -7,4 +7,5 @@ from . import views
 urlpatterns = [
     path("", views.add_shot, name="add_shot"),
     path("stats/", views.get_stats, name="get_stats"),
+    path("reset/", views.reset_session, name="reset_session"),
 ]

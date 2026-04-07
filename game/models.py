@@ -21,3 +21,10 @@ class Shot(models.Model):
 
     def __str__(self):
         return f"{self.player} - {self.zone} - {'Made' if self.made else 'Missed'}"
+
+class Team(models.Model):
+    name = models.CharField(max_length=100)
+    players = models.ManyToManyField(Player)
+
+    def __str__(self):
+        return self.name

@@ -1,9 +1,16 @@
 <h1 class="main-title">Game Dashboard</h1>
+<div class="reset-button"><button type="button" onclick="resetSession()">Reset Activity</button></div>
 
 <style>
   .main-title {
     text-align: center;
     font-size: 50px;
+  }
+
+  .reset-button {
+    display: flex;
+    justify-content: right;
+    margin-top: 15px;
   }
 </style>
 
@@ -48,6 +55,8 @@
 </div>
 
 <hr>
+
+<p id="best-player-display"><h1>Best Player: None</h1></p>
 
 <style>
 .court {
@@ -171,7 +180,7 @@
     margin-top: 15px;
 }
 
-/* made-miss buttons position */
+
 .result-buttons button {
     padding: 15px 35px;
     font-size: 20px;
@@ -270,4 +279,18 @@ window.onload = function() {
     document.getElementById("player").addEventListener("change", updateHeatmap);
     updateHeatmap();
 };
+
+function resetSession() {
+    fetch("/reset/", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}"
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        location.reload();
+    });
+}
+
 </script>
