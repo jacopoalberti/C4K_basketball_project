@@ -39,9 +39,11 @@
     <div class="three-right"></div>
 
     {% for zone in zones %}
-        <button id="zone-{{ zone.id }}" class="zone zone-{{ zone.id}}" onclick="selectZone({{ zone.id }})">
-            {{ zone.name }}
-        </button>
+    <button id="zone-{{ zone.id }}" class="zone zone-{{ zone.id}}"
+            data-name="{{ zone.name }}"
+            onclick="selectZone({{ zone.id }})">
+        {{ zone.name }}
+    </button>
     {% endfor %}
 
     <p id="selected-zone-display">
@@ -56,7 +58,9 @@
 
 <hr>
 
-<p id="best-player-display"><h1>Best Player: None</h1></p>
+<div id="best-player-display">
+    <h1>Best Player: None</h1>
+</div>
 
 <style>
 .court {
@@ -167,7 +171,7 @@
 /* selected zone text */
     #selected-zone-display {
     text-align: left;
-    font-size: 20px;
+    font-size: 25px;
     font-weight: bold;
     margin-top: 400px;
 }
@@ -203,7 +207,8 @@ function selectZone(zoneId) {
 }
 
 function submitShot(made, createPlayerOnly=false) {
-    const playerId = document.getElementById("player").value;
+    const playerSelect = document.getElementById("player");
+    const playerId = playerSelect.value;
     const newPlayerName = document.getElementById("newPlayerName").value.trim();
 
     if (!playerId && !newPlayerName) {
@@ -211,13 +216,8 @@ function submitShot(made, createPlayerOnly=false) {
         return;
     }
 
-    if (!selectedZone && !createPlayerOnly) {
-        alert("Select a zone first!");
-        return;
-    }
-
     const bodyData = `player=${playerId}&new_player=${encodeURIComponent(newPlayerName)}` +
-                     (createPlayerOnly ? "" : `&zone=${selectedZone}&made=${made}`);
+                     (!createPlayerOnly ? `&zone=${selectedZone}&made=${made}` : "");
 
     fetch("", {
         method: "POST",
@@ -230,8 +230,16 @@ function submitShot(made, createPlayerOnly=false) {
     .then(response => response.json())
     .then(data => {
         if (data.status === "ok") {
+            if (newPlayerName && data.player_id) {
+                const option = document.createElement("option");
+                option.value = data.player_id;
+                option.text = newPlayerName;
+                playerSelect.add(option);
+                playerSelect.value = data.player_id;
+                document.getElementById("newPlayerName").value = "";
+            }
             updateHeatmap();
-            document.getElementById("newPlayerName").value = "";
+            updateBestPlayer();
         } else {
             alert(data.message);
         }
@@ -244,14 +252,14 @@ function submitShot(made, createPlayerOnly=false) {
 
 function updateHeatmap() {
     const playerId = document.getElementById("player").value;
-    if (!playerId) {
-        // Clear heatmap if no player selected
-        document.querySelectorAll(".zone").forEach(btn => {
-            btn.style.backgroundColor = "";
-            btn.innerText = btn.dataset.name;  // optional: reset to zone name
-        });
-        return;
-    }
+
+    document.querySelectorAll(".zone").forEach(btn => {
+        btn.style.backgroundColor = "";
+        btn.innerText = btn.dataset.name;
+    });
+
+    if (!playerId) return;
+
     fetch(`/stats/?player=${playerId}`)
     .then(response => response.json())
     .then(data => {
@@ -260,11 +268,7 @@ function updateHeatmap() {
             if (!button) return;
 
             const pct = zone.percentage;
-            let color;
-
-            if (pct > 70) color = "green";
-            else if (pct > 40) color = "yellow";
-            else color = "red";
+            const color = pct > 70 ? "green" : pct > 40 ? "yellow" : "red";
 
             button.style.backgroundColor = color;
             button.innerText = `${zone.zone_name}\n${pct.toFixed(0)}% | ${zone.points} pts`;
@@ -273,12 +277,23 @@ function updateHeatmap() {
     .catch(err => console.error(err));
 }
 
+
 document.getElementById("player").addEventListener("change", updateHeatmap);
 
 window.onload = function() {
     document.getElementById("player").addEventListener("change", updateHeatmap);
     updateHeatmap();
+    updateBestPlayer();
 };
+
+function updateBestPlayer() {
+    fetch("/best_player/")
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("best-player-display").innerText =
+            `Best Player: ${data.name} (${data.points} pts)`;
+    });
+}
 
 function resetSession() {
     fetch("/reset/", {
@@ -289,8 +304,25 @@ function resetSession() {
     })
     .then(response => response.json())
     .then(data => {
-        location.reload();
-    });
+        if (data.status === "ok") {
+            const playerSelect = document.getElementById("player");
+            playerSelect.innerHTML = '<option value="">-- Select player --</option>';
+
+            document.querySelectorAll(".zone").forEach(btn => {
+                btn.style.backgroundColor = "";
+                btn.innerText = btn.dataset.name;
+            });
+
+            document.getElementById("newPlayerName").value = "";
+            document.getElementById("selected-zone-display").innerText = "Selected Zone: None";
+
+            updateHeatmap();
+            updateBestPlayer();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(err => console.error("Error:", err));
 }
 
 </script>

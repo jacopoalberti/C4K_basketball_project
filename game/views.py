@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 from django.shortcuts import render
-from .models import Player, Shot, Zone
+from .models import Player, Shot, Zone, Team
 from django.db.models import Count, Q
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
@@ -27,15 +27,19 @@ def add_shot(request):
             else:
                 player = Player.objects.get(id=player_id)
 
-            zone = Zone.objects.get(id=zone_id)
+            if zone_id:
+                if zone_id:
+                    try:
+                        zone = Zone.objects.get(id=zone_id)
+                        Shot.objects.create(
+                            player=player,
+                            zone=zone,
+                            made=made
+                        )
+                    except Zone.DoesNotExist:
+                        return JsonResponse({"status": "error", "message": "Selected zone does not exist"}, status=400)
 
-            Shot.objects.create(
-                player=player,
-                zone=zone,
-                made=made
-            )
-
-            return JsonResponse({"status": "ok"})
+            return JsonResponse({ "status": "ok", "player_id": player.id })
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
 
@@ -86,14 +90,50 @@ def get_stats(request):
             "points": points
         })
 
-
-
     return JsonResponse(result, safe=False)
 
 
+def get_best_player(request):
+    best_player = None
+    best_score = -1
 
+    for player in Player.objects.all():
+        total = 0
+        shots = Shot.objects.filter(player=player, made=True)
+
+        for shot in shots:
+            zone_id = shot.zone.id
+
+            if zone_id == 1:
+                total += 1
+            elif zone_id in [2, 3]:
+                total += 2
+            else:
+                total += 3
+
+        if total > best_score:
+            best_score = total
+            best_player = player
+
+    if best_player:
+        return JsonResponse({
+            "name": best_player.name,
+            "points": best_score
+        })
+
+    return JsonResponse({
+        "name": "None",
+        "points": 0
+    })
+
+
+@csrf_exempt
 def reset_session(request):
     if request.method == "POST":
         Shot.objects.all().delete()
+        for team in Team.objects.all():
+            team.players.clear()
         Player.objects.all().delete()
         return JsonResponse({"status": "ok"})
+
+    return JsonResponse({"status": "error", "message": "POST required"}, status=405)
