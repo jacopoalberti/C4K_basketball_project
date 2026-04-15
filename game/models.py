@@ -28,3 +28,10 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class TeamShot(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    zone = models.ForeignKey(Zone, on_delete=models.CASCADE)
+    made = models.BooleanField()
+    timestamp = models.DateTimeField(auto_now_add=True)
