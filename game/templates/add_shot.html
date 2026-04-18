@@ -56,11 +56,19 @@
     <button type="button" onclick="submitShot(false)">MISS</button>
 </div>
 
+<h3 id="playerTotalShots"></h3>
+
 <hr>
 
 <div id="best-player-display">
     <h1>Best Player: None</h1>
 </div>
+
+<hr>
+
+<button onclick="window.location.href='/team/'">
+    Go to Team Activity
+</button>
 
 <style>
 .court {
@@ -263,7 +271,7 @@ function updateHeatmap() {
     fetch(`/stats/?player=${playerId}`)
     .then(response => response.json())
     .then(data => {
-        data.forEach(zone => {
+        data.zones.forEach(zone => {
             const button = document.getElementById(`zone-${zone.zone_id}`);
             if (!button) return;
 
@@ -273,6 +281,9 @@ function updateHeatmap() {
             button.style.backgroundColor = color;
             button.innerText = `${zone.zone_name}\n${pct.toFixed(0)}% | ${zone.points} pts`;
         });
+
+        document.getElementById("playerTotalShots").innerText =
+            `Total Shots Attempted: ${data.total_attempts}`;
     })
     .catch(err => console.error(err));
 }

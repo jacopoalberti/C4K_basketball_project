@@ -68,6 +68,8 @@ def get_stats(request):
 
     result = []
 
+    total_attempts = sum(s["total"] for s in stats)
+
     for s in stats:
         percentage = (s["made"] / s["total"]) * 100 if s["total"] > 0 else 0
 
@@ -82,14 +84,18 @@ def get_stats(request):
 
         points = s["made"] * value
 
+
         result.append({
             "zone_id": zone_id,
             "zone_name": s["zone__name"],
             "percentage": percentage,
-            "points": points
+            "points": points,
         })
 
-    return JsonResponse(result, safe=False)
+    return JsonResponse({
+        "zones": result,
+        "total_attempts": total_attempts
+    })
 
 
 def get_best_player(request):
@@ -130,8 +136,8 @@ def get_best_player(request):
 def reset_session(request):
     if request.method == "POST":
         Shot.objects.all().delete()
-        for team in Team.objects.all():
-            team.players.clear()
+        TeamShot.objects.all().delete()
+        Team.objects.all().delete()
         Player.objects.all().delete()
         return JsonResponse({"status": "ok"})
 
@@ -172,6 +178,41 @@ def create_team(request):
     return JsonResponse({"status": "error", "message": "POST required"}, status=405)
 
 
+def assign_player_to_team(request):
+    if request.method == "POST":
+        try:
+            team_id = request.POST.get("team")
+            player_id = request.POST.get("player")
+
+            team = Team.objects.get(id=team_id)
+            player = Player.objects.get(id=player_id)
+
+            team.players.add(player)
+
+            return JsonResponse({"status": "ok"})
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+    return JsonResponse({"status": "error", "message": "POST required"}, status=405)
+
+
+def get_team_members(request):
+    try:
+        team_id = request.GET.get("team")
+        team = Team.objects.get(id=team_id)
+
+        members = list(team.players.values("id", "name"))
+
+        return JsonResponse({
+            "status": "ok",
+            "members": members
+        })
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+
 def add_team_shot(request):
     if request.method == "POST":
         try:
@@ -207,7 +248,7 @@ def get_team_stats(request):
     except ValueError:
         return JsonResponse({"status": "error", "message": "Invalid team ID"}, status=400)
 
-    shots = TeamShot.objects.filter(player_team_id=team_id)
+    shots = TeamShot.objects.filter(team_id=team_id)
 
     stats = (
         shots
@@ -240,5 +281,35 @@ def get_team_stats(request):
             "percentage": percentage,
             "points": points
         })
+
+    return JsonResponse(result, safe=False)
+
+
+def get_team_leaderboard(request):
+    teams = Team.objects.all()
+
+    result = []
+
+    for team in teams:
+        shots = TeamShot.objects.filter(team=team)
+
+        total_points = 0
+
+        for s in shots:
+            if s.made:
+                if s.zone.id == 1:
+                    total_points += 1
+                elif s.zone.id in [2, 3]:
+                    total_points += 2
+                else:
+                    total_points += 3
+
+        result.append({
+            "team_id": team.id,
+            "team_name": team.name,
+            "points": total_points
+        })
+
+    result = sorted(result, key=lambda x: x["points"], reverse=True)
 
     return JsonResponse(result, safe=False)

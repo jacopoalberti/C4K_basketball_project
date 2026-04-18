@@ -1,10 +1,38 @@
-<h1>Team Dashboard</h1>
+<h1 class="main-title">Team Dashboard</h1>
 
 <hr>
+
+<style>
+    .main-title {
+      text-align: center;
+      font-size: 50px;
+    }
+</style>
 
 <h2>Create Team</h2>
 <input id="teamName" placeholder="Team name" type="text">
 <button onclick="createTeam()">Create Team</button>
+
+<hr>
+
+<h2>Assign Player to Team</h2>
+
+<select id="assignTeam">
+    <option value="">-- Select Team --</option>
+    {% for team in teams %}
+    <option value="{{ team.id }}">{{ team.name }}</option>
+    {% endfor %}
+</select>
+
+<select id="assignPlayer">
+    <option value="">-- Select Player --</option>
+    {% for player in players %}
+    <option value="{{ player.id }}">{{ player.name }}</option>
+    {% endfor %}
+</select>
+
+<button onclick="assignPlayerToTeam()">Assign</button>
+
 
 <hr>
 
@@ -16,6 +44,7 @@
     <option value="{{ player.id }}">{{ player.name }}</option>
     {% endfor %}
 </select>
+
 
 <div class="court">
     <div class="backboard"></div>
@@ -40,12 +69,15 @@
 
 <h2>Team Heatmap</h2>
 
-<select id="heatmapTeam" onchange="updateHeatmap()">
+<select id="heatmapTeam" onchange="onTeamSelect()">
     <option value="">-- Select Team --</option>
     {% for team in teams %}
     <option value="{{ team.id }}">{{ team.name }}</option>
     {% endfor %}
 </select>
+
+<h3>Team Members</h3>
+<div id="teamMembers"></div>
 
 <hr>
 
@@ -77,6 +109,15 @@
 </div>
 
 <hr>
+
+<h2>Team Leaderboard</h2>
+<div id="leaderboard"></div>
+
+<hr>
+
+<button onclick="window.location.href='/'">
+    Back to Player Activity
+</button>
 
 <style>
     .court {
@@ -243,6 +284,57 @@
         });
     }
 
+
+    function assignPlayerToTeam() {
+        const teamId = document.getElementById("assignTeam").value;
+        const playerId = document.getElementById("assignPlayer").value;
+
+        if (!teamId || !playerId) {
+            alert("Select both a team and a player!");
+            return;
+        }
+
+        fetch("/assign-player/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: `team=${teamId}&player=${playerId}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "ok") {
+                alert("Player assigned!");
+                loadTeamMembers(teamId);
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+
+    function loadTeamMembers(teamId) {
+        fetch(`/team-members/?team=${teamId}`)
+        .then(res => res.json())
+        .then(data => {
+            const div = document.getElementById("teamMembers");
+
+            div.innerHTML = "";
+
+            if (data.status !== "ok") return;
+
+            data.members.forEach(player => {
+                const p = document.createElement("p");
+                p.innerText = player.name;
+                div.appendChild(p);
+            });
+        });
+    }
+
+    document.getElementById("assignTeam").addEventListener("change", function() {
+        loadTeamMembers(this.value);
+    });
+
     let selectedZone = null;
 
 
@@ -262,6 +354,7 @@
             // reset ONLY player zones
             document.querySelectorAll("[id^='pzone-']").forEach(z => {
                 z.style.backgroundColor = "";
+                z.innerText = z.dataset.name;
             });
 
             data.forEach(zone => {
@@ -274,11 +367,36 @@
                 else color = "red";
 
                 btn.style.backgroundColor = color;
+                btn.innerText = `${zone.zone_name}\n${zone.percentage.toFixed(0)}% | ${zone.points} pts`;
             });
         });
     }
 
+    function onTeamSelect() {
+        const teamId = document.getElementById("heatmapTeam").value;
 
+        updateTeamHeatmap();
+
+        if (!teamId) {
+            document.getElementById("teamMembers").innerHTML = "";
+            return;
+        }
+
+        fetch(`/team-members/?team=${teamId}`)
+        .then(res => res.json())
+        .then(data => {
+            const div = document.getElementById("teamMembers");
+            div.innerHTML = "";
+
+            if (data.status !== "ok") return;
+
+            data.members.forEach(player => {
+                const p = document.createElement("div");
+                p.innerText = player.name;
+                div.appendChild(p);
+            });
+        });
+    }
 
     function selectZone(zoneId) {
         selectedZone = zoneId;
@@ -311,6 +429,7 @@
         .then(data => {
             if (data.status === "ok") {
                 updateTeamHeatmap();
+                updateLeaderboard();
             } else {
                 alert(data.message);
             }
@@ -333,7 +452,8 @@
 
             // reset colors
             document.querySelectorAll("[id^='tzone-']").forEach(z => {
-            z.style.backgroundColor = "";
+                z.style.backgroundColor = "";
+                z.innerText = z.dataset.name;
             });
 
             data.forEach(zone => {
@@ -345,7 +465,27 @@
                 else color = "red";
 
                 btn.style.backgroundColor = color;
+                btn.innerText = `${zone.zone_name}\n${zone.percentage.toFixed(0)}% | ${zone.points} pts`;
             });
         });
     }
+
+    function updateLeaderboard() {
+        fetch("/team-leaderboard/")
+        .then(res => res.json())
+        .then(data => {
+            const div = document.getElementById("leaderboard");
+            div.innerHTML = "";
+
+            data.forEach(team => {
+                const row = document.createElement("div");
+                row.innerText = `${team.team_name} — ${team.points} pts`;
+                div.appendChild(row);
+            });
+        });
+    }
+
+    window.onload = function () {
+        updateLeaderboard();
+    };
 </script>
