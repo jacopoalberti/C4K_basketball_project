@@ -241,7 +241,7 @@
         margin-top: 15px;
     }
 
-
+    /* made-miss buttons size */
     .result-buttons button {
         padding: 15px 35px;
         font-size: 20px;
@@ -254,6 +254,7 @@
     function createTeam() {
         const name = document.getElementById("teamName").value.trim();
 
+        // Prevent empty team names
         if (!name) {
             alert("Enter a team name!");
             return;
@@ -265,7 +266,7 @@
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-CSRFToken": "{{ csrf_token }}"
             },
-            body: `name=${encodeURIComponent(name)}`
+            body: `name=${encodeURIComponent(name)}` // Encode to avoid breaking request
         })
         .then(res => res.json())
         .then(data => {
@@ -289,6 +290,7 @@
         const teamId = document.getElementById("assignTeam").value;
         const playerId = document.getElementById("assignPlayer").value;
 
+        // Ensure both teamId and playerId selections are made
         if (!teamId || !playerId) {
             alert("Select both a team and a player!");
             return;
@@ -306,6 +308,7 @@
         .then(data => {
             if (data.status === "ok") {
                 alert("Player assigned!");
+                // Refresh member list after assignment
                 loadTeamMembers(teamId);
             } else {
                 alert(data.message);
@@ -319,10 +322,11 @@
         .then(data => {
             const div = document.getElementById("teamMembers");
 
-            div.innerHTML = "";
+            div.innerHTML = ""; // Clear previous list before re-rendering
 
             if (data.status !== "ok") return;
 
+            // Dynamically render each player
             data.members.forEach(player => {
                 const p = document.createElement("p");
                 p.innerText = player.name;
@@ -331,6 +335,7 @@
         });
     }
 
+    // Load team members when team dropdown changes
     document.getElementById("assignTeam").addEventListener("change", function() {
         loadTeamMembers(this.value);
     });
@@ -342,7 +347,7 @@
         const playerId = document.getElementById("playerSelect").value;
         if (!playerId) {
         document.querySelectorAll("[id^='pzone-']").forEach(z => {
-            z.style.backgroundColor = "";
+            z.style.backgroundColor = ""; // Reset only player-related zones if no player selected
         });
         return;
         }
@@ -375,13 +380,14 @@
     function onTeamSelect() {
         const teamId = document.getElementById("heatmapTeam").value;
 
-        updateTeamHeatmap();
+        updateTeamHeatmap(); // Always update heatmap when selection changes
 
         if (!teamId) {
             document.getElementById("teamMembers").innerHTML = "";
             return;
         }
 
+        // Fetch and display team members
         fetch(`/team-members/?team=${teamId}`)
         .then(res => res.json())
         .then(data => {
@@ -399,7 +405,7 @@
     }
 
     function selectZone(zoneId) {
-        selectedZone = zoneId;
+        selectedZone = zoneId; // Store selected zone globally for shot submission
         document.getElementById("selected-zone-display").innerText =
             "Selected Zone: " + zoneId;
     }
@@ -412,10 +418,6 @@
             return;
         }
 
-        if (!teamId) {
-        alert("Select a team!");
-        return;
-        }
 
         fetch("/team-shot/", {
             method: "POST",
@@ -428,6 +430,7 @@
         .then(res => res.json())
         .then(data => {
             if (data.status === "ok") {
+                // Refresh dependent UI after shot
                 updateTeamHeatmap();
                 updateLeaderboard();
             } else {
@@ -440,8 +443,8 @@
         const teamId = document.getElementById("heatmapTeam").value;
 
         if (!teamId) {
-        document.querySelectorAll("[id^='tzone-']").forEach(z => {
-            z.style.backgroundColor = "";
+            document.querySelectorAll("[id^='tzone-']").forEach(z => {
+                z.style.backgroundColor = ""; // Reset team zones if nothing selected
         });
         return;
         }
@@ -475,8 +478,9 @@
         .then(res => res.json())
         .then(data => {
             const div = document.getElementById("leaderboard");
-            div.innerHTML = "";
+            div.innerHTML = ""; // Clear previous leaderboard
 
+            // Render sorted team scores
             data.forEach(team => {
                 const row = document.createElement("div");
                 row.innerText = `${team.team_name} — ${team.points} pts`;
@@ -486,6 +490,6 @@
     }
 
     window.onload = function () {
-        updateLeaderboard();
+        updateLeaderboard(); // Initialize leaderboard on page load
     };
 </script>

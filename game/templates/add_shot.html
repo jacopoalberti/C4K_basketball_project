@@ -206,134 +206,150 @@
 
 
 <script>
-let selectedZone = null;
+    let selectedZone = null; // Stores the currently selected zone ID
 
-function selectZone(zoneId) {
-    selectedZone = zoneId;
-    document.getElementById("selected-zone-display").innerText =
-        `Selected Zone: ${zoneId}`;
-}
-
-function submitShot(made, createPlayerOnly=false) {
-    const playerSelect = document.getElementById("player");
-    const playerId = playerSelect.value;
-    const newPlayerName = document.getElementById("newPlayerName").value.trim();
-
-    if (!playerId && !newPlayerName) {
-        alert("Select a player or enter a new player name!");
-        return;
+    function selectZone(zoneId) {
+        selectedZone = zoneId; // Update global state when user clicks a zone
+        document.getElementById("selected-zone-display").innerText =
+            `Selected Zone: ${zoneId}`; // Reflect selection in UI
     }
 
-    const bodyData = `player=${playerId}&new_player=${encodeURIComponent(newPlayerName)}` +
-                     (!createPlayerOnly ? `&zone=${selectedZone}&made=${made}` : "");
+    function submitShot(made, createPlayerOnly=false) {
+        const playerSelect = document.getElementById("player");
+        const playerId = playerSelect.value;
+        const newPlayerName = document.getElementById("newPlayerName").value.trim();
 
-    fetch("", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: bodyData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === "ok") {
-            if (newPlayerName && data.player_id) {
-                const option = document.createElement("option");
-                option.value = data.player_id;
-                option.text = newPlayerName;
-                playerSelect.add(option);
-                playerSelect.value = data.player_id;
-                document.getElementById("newPlayerName").value = "";
-            }
-            updateHeatmap();
-            updateBestPlayer();
-        } else {
-            alert(data.message);
+        // Require either an existing player OR a new name
+        if (!playerId && !newPlayerName) {
+            alert("Select a player or enter a new player name!");
+            return;
         }
-    })
-    .catch(err => {
-        console.error("Error:", err);
-        alert("An error occurred");
-    });
-}
 
-function updateHeatmap() {
-    const playerId = document.getElementById("player").value;
+        // Build request body manually (URL-encoded format)
+        const bodyData = `player=${playerId}&new_player=${encodeURIComponent(newPlayerName)}` +
+                         (!createPlayerOnly ? `&zone=${selectedZone}&made=${made}` : "");
 
-    document.querySelectorAll(".zone").forEach(btn => {
-        btn.style.backgroundColor = "";
-        btn.innerText = btn.dataset.name;
-    });
+        fetch("", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": "{{ csrf_token }}" // Required for Django POST requests
+            },
+            body: bodyData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "ok") {
+                // If a new player was created, dynamically add them to dropdown
+                if (newPlayerName && data.player_id) {
+                    const option = document.createElement("option");
+                    option.value = data.player_id;
+                    option.text = newPlayerName;
+                    playerSelect.add(option);
+                    playerSelect.value = data.player_id; // Auto-select new player
+                    document.getElementById("newPlayerName").value = ""; // Clear input field after creation
+                }
+                // Refresh UI after successful submission
+                updateHeatmap();
+                updateBestPlayer();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(err => {
+            console.error("Error:", err);
+            alert("An error occurred");
+        });
+    }
 
-    if (!playerId) return;
+    function updateHeatmap() {
+        const playerId = document.getElementById("player").value;
 
-    fetch(`/stats/?player=${playerId}`)
-    .then(response => response.json())
-    .then(data => {
-        data.zones.forEach(zone => {
-            const button = document.getElementById(`zone-${zone.zone_id}`);
-            if (!button) return;
-
-            const pct = zone.percentage;
-            const color = pct > 70 ? "green" : pct > 40 ? "yellow" : "red";
-
-            button.style.backgroundColor = color;
-            button.innerText = `${zone.zone_name}\n${pct.toFixed(0)}% | ${zone.points} pts`;
+        // Reset all zone buttons to default state before applying new data
+        document.querySelectorAll(".zone").forEach(btn => {
+            btn.style.backgroundColor = "";
+            btn.innerText = btn.dataset.name; // Restore original label
         });
 
-        document.getElementById("playerTotalShots").innerText =
-            `Total Shots Attempted: ${data.total_attempts}`;
-    })
-    .catch(err => console.error(err));
-}
+        if (!playerId) return; // No player selected then nothing to display
 
+        fetch(`/stats/?player=${playerId}`)
+        .then(response => response.json())
+        .then(data => {
 
-document.getElementById("player").addEventListener("change", updateHeatmap);
+            // Update each zone button based on stats
+            data.zones.forEach(zone => {
+                const button = document.getElementById(`zone-${zone.zone_id}`);
+                if (!button) return; // Skip if element doesn't exist
 
-window.onload = function() {
-    document.getElementById("player").addEventListener("change", updateHeatmap);
-    updateHeatmap();
-    updateBestPlayer();
-};
+                // Heatmap color logic based on shooting %
+                const pct = zone.percentage;
+                const color = pct > 70 ? "green" : pct > 40 ? "yellow" : "red";
 
-function updateBestPlayer() {
-    fetch("/best_player/")
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById("best-player-display").innerText =
-            `Best Player: ${data.name} (${data.points} pts)`;
-    });
-}
-
-function resetSession() {
-    fetch("/reset/", {
-        method: "POST",
-        headers: {
-            "X-CSRFToken": "{{ csrf_token }}"
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === "ok") {
-            const playerSelect = document.getElementById("player");
-            playerSelect.innerHTML = '<option value="">-- Select player --</option>';
-
-            document.querySelectorAll(".zone").forEach(btn => {
-                btn.style.backgroundColor = "";
-                btn.innerText = btn.dataset.name;
+                // Show zone name, percentage, and points
+                button.style.backgroundColor = color;
+                button.innerText = `${zone.zone_name}\n${pct.toFixed(0)}% | ${zone.points} pts`;
             });
 
-            document.getElementById("newPlayerName").value = "";
-            document.getElementById("selected-zone-display").innerText = "Selected Zone: None";
+            // Update total attempts display
+            document.getElementById("playerTotalShots").innerText =
+                `Total Shots Attempted: ${data.total_attempts}`;
+        })
+        .catch(err => console.error(err));
+    }
 
-            updateHeatmap();
-            updateBestPlayer();
-        } else {
-            alert(data.message);
-        }
-    })
-    .catch(err => console.error("Error:", err));
-}
+
+    document.getElementById("player").addEventListener("change", updateHeatmap); // Update heatmap whenever selected player changes
+
+    window.onload = function() {
+        document.getElementById("player").addEventListener("change", updateHeatmap);
+
+        // Initialize UI on page load
+        updateHeatmap();
+        updateBestPlayer();
+    };
+
+    function updateBestPlayer() {
+        fetch("/best_player/")
+        .then(response => response.json())
+        .then(data => {
+            // Display current top-scoring player
+            document.getElementById("best-player-display").innerText =
+                `Best Player: ${data.name} (${data.points} pts)`;
+        });
+    }
+
+    function resetSession() {
+        fetch("/reset/", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": "{{ csrf_token }}"
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "ok") {
+                const playerSelect = document.getElementById("player");
+                playerSelect.innerHTML = '<option value="">-- Select player --</option>'; // Reset dropdown to default state
+
+                // Reset all zone buttons visually
+                document.querySelectorAll(".zone").forEach(btn => {
+                    btn.style.backgroundColor = "";
+                    btn.innerText = btn.dataset.name;
+                });
+
+                // Clear inputs and selection display
+                document.getElementById("newPlayerName").value = "";
+                document.getElementById("selected-zone-display").innerText = "Selected Zone: None";
+
+                // Refresh UI after reset
+                updateHeatmap();
+                updateBestPlayer();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(err => console.error("Error:", err));
+    }
 
 </script>

@@ -8,20 +8,24 @@ from django.http import JsonResponse
 
 
 def index(request):
+    # Simple health check
     return HttpResponse("Hello, this is the game app!")
 
-@csrf_exempt
+
+@csrf_exempt  # Disables CSRF protection
 def add_shot(request):
     players = Player.objects.all()
     zones = Zone.objects.all()
 
     if request.method == "POST":
         try:
+            # Get form data
             player_id = request.POST.get("player")
             new_player_name = request.POST.get("new_player")
             zone_id = request.POST.get("zone")
-            made = request.POST.get("made") == "true"
+            made = request.POST.get("made") == "true"  # Convert string to boolean
 
+            # Either create a new player OR fetch an existing one
             if new_player_name:
                 player = Player.objects.create(name=new_player_name)
             else:
@@ -30,6 +34,7 @@ def add_shot(request):
             if zone_id:
                 try:
                     zone = Zone.objects.get(id=zone_id)
+                    # Create shot record tied to player + zone
                     Shot.objects.create(
                         player=player,
                         zone=zone,
@@ -39,9 +44,11 @@ def add_shot(request):
                     return JsonResponse({"status": "error", "message": "Selected zone does not exist"}, status=400)
 
             return JsonResponse({ "status": "ok", "player_id": player.id })
+        # Catch-all exception
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
 
+    # GET request → render form
     return render(request, "add_shot.html", {"players": players, "zones": zones})
 
 
@@ -50,13 +57,15 @@ def get_stats(request):
     shots = Shot.objects.all()
     if player_id:
         try:
+            # Filter shots for a specific player
             shots = shots.filter(player_id=int(player_id))
         except ValueError:
             return JsonResponse({"status": "error", "message": "Invalid player ID"}, status=400)
     else:
+        # No player → return empty list
         return JsonResponse([], safe=False)
 
-
+    # Group shots by zone and calculate totals + made shots
     stats = (
         shots
         .values("zone__id", "zone__name")
@@ -68,19 +77,20 @@ def get_stats(request):
 
     result = []
 
-    total_attempts = sum(s["total"] for s in stats)
+    total_attempts = sum(s["total"] for s in stats)  # Total attempts across all zones
 
     for s in stats:
-        percentage = (s["made"] / s["total"]) * 100 if s["total"] > 0 else 0
+        percentage = (s["made"] / s["total"]) * 100 if s["total"] > 0 else 0  # Avoid division by zero
 
         zone_id = s["zone__id"]
 
+        # Assign point value based on zone
         if zone_id == 1:
-            value = 1
+            value = 1  # 1 point for shots in zone 1
         elif zone_id in [2, 3]:
-            value = 2
+            value = 2  # 2 points for shots in zone 2 and 3
         else:
-            value = 3
+            value = 3  # 3 points for all other zones
 
         points = s["made"] * value
 
@@ -100,15 +110,17 @@ def get_stats(request):
 
 def get_best_player(request):
     best_player = None
-    best_score = -1
+    best_score = -1  # Start below any possible score
 
+    # Iterate through all players
     for player in Player.objects.all():
         total = 0
-        shots = Shot.objects.filter(player=player, made=True)
+        shots = Shot.objects.filter(player=player, made=True)  # Only count made shots
 
         for shot in shots:
             zone_id = shot.zone.id
 
+            # Same scoring logic repeated again
             if zone_id == 1:
                 total += 1
             elif zone_id in [2, 3]:
@@ -116,16 +128,19 @@ def get_best_player(request):
             else:
                 total += 3
 
+        # Track highest scoring player
         if total > best_score:
             best_score = total
             best_player = player
 
+    # Return best player if it exists
     if best_player:
         return JsonResponse({
             "name": best_player.name,
             "points": best_score
         })
 
+    # Fallback if no players exist
     return JsonResponse({
         "name": "None",
         "points": 0
@@ -135,6 +150,7 @@ def get_best_player(request):
 @csrf_exempt
 def reset_session(request):
     if request.method == "POST":
+        # Delete all data
         Shot.objects.all().delete()
         TeamShot.objects.all().delete()
         Team.objects.all().delete()
@@ -145,6 +161,7 @@ def reset_session(request):
 
 
 def team_page(request):
+    # Load all necessary data for team UI
     teams = Team.objects.all()
     zones = Zone.objects.all()
     players = Player.objects.all()
@@ -164,7 +181,7 @@ def create_team(request):
             if not name:
                 return JsonResponse({"status": "error", "message": "Name required"}, status=400)
 
-            team = Team.objects.create(name=name)
+            team = Team.objects.create(name=name)  # create object Team
 
             return JsonResponse({
                 "status": "ok",
@@ -184,10 +201,10 @@ def assign_player_to_team(request):
             team_id = request.POST.get("team")
             player_id = request.POST.get("player")
 
-            team = Team.objects.get(id=team_id)
-            player = Player.objects.get(id=player_id)
+            team = Team.objects.get(id=team_id)  # get object Team
+            player = Player.objects.get(id=player_id)  # get object player
 
-            team.players.add(player)
+            team.players.add(player)  # Many-to-many relationship
 
             return JsonResponse({"status": "ok"})
 
@@ -202,7 +219,7 @@ def get_team_members(request):
         team_id = request.GET.get("team")
         team = Team.objects.get(id=team_id)
 
-        members = list(team.players.values("id", "name"))
+        members = list(team.players.values("id", "name"))  # Convert queryset to a list of dicts for JSON
 
         return JsonResponse({
             "status": "ok",
@@ -223,6 +240,7 @@ def add_team_shot(request):
             team = Team.objects.get(id=team_id)
             zone = Zone.objects.get(id=zone_id)
 
+            # Create team-based shot record
             TeamShot.objects.create(
                 team=team,
                 zone=zone,
@@ -250,6 +268,7 @@ def get_team_stats(request):
 
     shots = TeamShot.objects.filter(team_id=team_id)
 
+    # Same pattern as player stats
     stats = (
         shots
         .values("zone__id", "zone__name")
@@ -295,6 +314,7 @@ def get_team_leaderboard(request):
 
         total_points = 0
 
+        # same scoring logic
         for s in shots:
             if s.made:
                 if s.zone.id == 1:
@@ -310,6 +330,6 @@ def get_team_leaderboard(request):
             "points": total_points
         })
 
-    result = sorted(result, key=lambda x: x["points"], reverse=True)
+    result = sorted(result, key=lambda x: x["points"], reverse=True)  # sort by number of points
 
     return JsonResponse(result, safe=False)
