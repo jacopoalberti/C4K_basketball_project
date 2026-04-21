@@ -8,7 +8,7 @@ from django.http import JsonResponse
 
 
 def index(request):
-    # Simple health check
+    # Test endpoint to confirm server is running
     return HttpResponse("Hello, this is the game app!")
 
 
@@ -31,10 +31,11 @@ def add_shot(request):
             else:
                 player = Player.objects.get(id=player_id)
 
+            # Only create a shot if zone is provided
             if zone_id:
                 try:
                     zone = Zone.objects.get(id=zone_id)
-                    # Create shot record tied to player + zone
+                    # Save shot to database
                     Shot.objects.create(
                         player=player,
                         zone=zone,
@@ -43,17 +44,17 @@ def add_shot(request):
                 except Zone.DoesNotExist:
                     return JsonResponse({"status": "error", "message": "Selected zone does not exist"}, status=400)
 
-            return JsonResponse({ "status": "ok", "player_id": player.id })
+            return JsonResponse({"status": "ok", "player_id": player.id})  # Return success + player id
         # Catch-all exception
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
 
-    # GET request → render form
+    # GET request → render HTML page
     return render(request, "add_shot.html", {"players": players, "zones": zones})
 
 
 def get_stats(request):
-    player_id = request.GET.get("player")
+    player_id = request.GET.get("player")  # Get player filter from query params (?player=1)
     shots = Shot.objects.all()
     if player_id:
         try:
@@ -92,7 +93,7 @@ def get_stats(request):
         else:
             value = 3  # 3 points for all other zones
 
-        points = s["made"] * value
+        points = s["made"] * value  # If shot is made convert it into points
 
 
         result.append({
@@ -120,7 +121,7 @@ def get_best_player(request):
         for shot in shots:
             zone_id = shot.zone.id
 
-            # Same scoring logic repeated again
+            # Same scoring logic repeated
             if zone_id == 1:
                 total += 1
             elif zone_id in [2, 3]:
@@ -128,7 +129,7 @@ def get_best_player(request):
             else:
                 total += 3
 
-        # Track highest scoring player
+        # Track the highest scoring player
         if total > best_score:
             best_score = total
             best_player = player
@@ -181,7 +182,7 @@ def create_team(request):
             if not name:
                 return JsonResponse({"status": "error", "message": "Name required"}, status=400)
 
-            team = Team.objects.create(name=name)  # create object Team
+            team = Team.objects.create(name=name)  # Create team in database
 
             return JsonResponse({
                 "status": "ok",
@@ -201,8 +202,9 @@ def assign_player_to_team(request):
             team_id = request.POST.get("team")
             player_id = request.POST.get("player")
 
-            team = Team.objects.get(id=team_id)  # get object Team
-            player = Player.objects.get(id=player_id)  # get object player
+            # Fetch objects from Database
+            team = Team.objects.get(id=team_id)
+            player = Player.objects.get(id=player_id)
 
             team.players.add(player)  # Many-to-many relationship
 
@@ -259,7 +261,7 @@ def get_team_stats(request):
     team_id = request.GET.get("team")
 
     if not team_id:
-        return JsonResponse([], safe=False)
+        return JsonResponse([], safe=False)  # If no team selected, return empty response
 
     try:
         team_id = int(team_id)

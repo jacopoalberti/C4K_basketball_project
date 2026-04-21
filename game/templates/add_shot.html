@@ -211,13 +211,15 @@
     function selectZone(zoneId) {
         selectedZone = zoneId; // Update global state when user clicks a zone
         document.getElementById("selected-zone-display").innerText =
-            `Selected Zone: ${zoneId}`; // Reflect selection in UI
+            `Selected Zone: ${zoneId}`; // update UI so user can see which zone is selected
     }
 
     function submitShot(made, createPlayerOnly=false) {
+        // get selected existing player from dropdown
         const playerSelect = document.getElementById("player");
         const playerId = playerSelect.value;
-        const newPlayerName = document.getElementById("newPlayerName").value.trim();
+
+        const newPlayerName = document.getElementById("newPlayerName").value.trim(); // get new player name input (if user is creating a new player)
 
         // Require either an existing player OR a new name
         if (!playerId && !newPlayerName) {
@@ -225,7 +227,7 @@
             return;
         }
 
-        // Build request body manually (URL-encoded format)
+        // Build request body manually
         const bodyData = `player=${playerId}&new_player=${encodeURIComponent(newPlayerName)}` +
                          (!createPlayerOnly ? `&zone=${selectedZone}&made=${made}` : "");
 
@@ -235,17 +237,19 @@
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-CSRFToken": "{{ csrf_token }}" // Required for Django POST requests
             },
-            body: bodyData
+            body: bodyData // send form data to backend
         })
-        .then(response => response.json())
+        .then(response => response.json()) // convert response to JSON
         .then(data => {
             if (data.status === "ok") {
                 // If a new player was created, dynamically add them to dropdown
                 if (newPlayerName && data.player_id) {
+                    // create new dropdown option for that player
                     const option = document.createElement("option");
                     option.value = data.player_id;
                     option.text = newPlayerName;
-                    playerSelect.add(option);
+
+                    playerSelect.add(option); // add new player to dropdown
                     playerSelect.value = data.player_id; // Auto-select new player
                     document.getElementById("newPlayerName").value = ""; // Clear input field after creation
                 }
@@ -263,7 +267,7 @@
     }
 
     function updateHeatmap() {
-        const playerId = document.getElementById("player").value;
+        const playerId = document.getElementById("player").value; // get currently selected player from dropdown
 
         // Reset all zone buttons to default state before applying new data
         document.querySelectorAll(".zone").forEach(btn => {
@@ -273,7 +277,7 @@
 
         if (!playerId) return; // No player selected then nothing to display
 
-        fetch(`/stats/?player=${playerId}`)
+        fetch(`/stats/?player=${playerId}`) // request stats for selected player
         .then(response => response.json())
         .then(data => {
 
@@ -301,6 +305,7 @@
 
     document.getElementById("player").addEventListener("change", updateHeatmap); // Update heatmap whenever selected player changes
 
+    // run when page loads
     window.onload = function() {
         document.getElementById("player").addEventListener("change", updateHeatmap);
 
@@ -310,6 +315,7 @@
     };
 
     function updateBestPlayer() {
+        // request best player from backend
         fetch("/best_player/")
         .then(response => response.json())
         .then(data => {
@@ -320,6 +326,7 @@
     }
 
     function resetSession() {
+        // send request to delete all session data
         fetch("/reset/", {
             method: "POST",
             headers: {

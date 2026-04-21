@@ -252,7 +252,7 @@
 
 <script>
     function createTeam() {
-        const name = document.getElementById("teamName").value.trim();
+        const name = document.getElementById("teamName").value.trim(); // Get team name input
 
         // Prevent empty team names
         if (!name) {
@@ -260,13 +260,15 @@
             return;
         }
 
+        // Send POST request to backend to create a new team
         fetch("/create-team/", {
             method: "POST",
+            // Required so Django accepts the request as form data
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-CSRFToken": "{{ csrf_token }}"
             },
-            body: `name=${encodeURIComponent(name)}` // Encode to avoid breaking request
+            body: `name=${encodeURIComponent(name)}` // Encode team name so special characters don’t break the request
         })
         .then(res => res.json())
         .then(data => {
@@ -287,6 +289,7 @@
 
 
     function assignPlayerToTeam() {
+        // Get selected team and player from dropdowns
         const teamId = document.getElementById("assignTeam").value;
         const playerId = document.getElementById("assignPlayer").value;
 
@@ -296,20 +299,20 @@
             return;
         }
 
+        // Send request to backend to assign player to team
         fetch("/assign-player/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "X-CSRFToken": "{{ csrf_token }}"
             },
-            body: `team=${teamId}&player=${playerId}`
+            body: `team=${teamId}&player=${playerId}` // Send IDs to backend
         })
         .then(res => res.json())
         .then(data => {
             if (data.status === "ok") {
                 alert("Player assigned!");
-                // Refresh member list after assignment
-                loadTeamMembers(teamId);
+                loadTeamMembers(teamId); // Refresh member list after assignment
             } else {
                 alert(data.message);
             }
@@ -317,20 +320,20 @@
     }
 
     function loadTeamMembers(teamId) {
-        fetch(`/team-members/?team=${teamId}`)
+        fetch(`/team-members/?team=${teamId}`) // Request list of players belonging to a team
         .then(res => res.json())
         .then(data => {
-            const div = document.getElementById("teamMembers");
+            const div = document.getElementById("teamMembers"); // Get container where members are displayed
 
-            div.innerHTML = ""; // Clear previous list before re-rendering
+            div.innerHTML = ""; // Clear previous list
 
             if (data.status !== "ok") return;
 
-            // Dynamically render each player
+            // Loop through returned players
             data.members.forEach(player => {
-                const p = document.createElement("p");
-                p.innerText = player.name;
-                div.appendChild(p);
+                const p = document.createElement("p"); // Create a new paragraph for each player
+                p.innerText = player.name; // Display player name
+                div.appendChild(p); // Add to page
             });
         });
     }
@@ -344,7 +347,7 @@
 
 
     function updatePlayerHeatmap() {
-        const playerId = document.getElementById("playerSelect").value;
+        const playerId = document.getElementById("playerSelect").value; // Get currently selected player
         if (!playerId) {
         document.querySelectorAll("[id^='pzone-']").forEach(z => {
             z.style.backgroundColor = ""; // Reset only player-related zones if no player selected
@@ -352,50 +355,53 @@
         return;
         }
 
-        fetch(`/stats/?player=${playerId}`)
+        fetch(`/stats/?player=${playerId}`) // Request player shot statistics from backend
         .then(res => res.json())
         .then(data => {
 
             // reset ONLY player zones
             document.querySelectorAll("[id^='pzone-']").forEach(z => {
-                z.style.backgroundColor = "";
-                z.innerText = z.dataset.name;
+                z.style.backgroundColor = ""; // clear color
+                z.innerText = z.dataset.name; // restore original label
             });
 
+            // Loop through zones returned by backend
             data.forEach(zone => {
-                const btn = document.getElementById(`pzone-${zone.zone_id}`);
+                const btn = document.getElementById(`pzone-${zone.zone_id}`); // Find matching zone button in UI
                 if (!btn) return;
 
+                // Decide heatmap color based on shooting percentage
                 let color;
                 if (zone.percentage > 70) color = "green";
                 else if (zone.percentage > 40) color = "yellow";
                 else color = "red";
 
-                btn.style.backgroundColor = color;
-                btn.innerText = `${zone.zone_name}\n${zone.percentage.toFixed(0)}% | ${zone.points} pts`;
+                btn.style.backgroundColor = color; // Apply visual colors
+                btn.innerText = `${zone.zone_name}\n${zone.percentage.toFixed(0)}% | ${zone.points} pts`; // Show stats inside button
             });
         });
     }
 
     function onTeamSelect() {
-        const teamId = document.getElementById("heatmapTeam").value;
+        const teamId = document.getElementById("heatmapTeam").value; // Get selected team from dropdown
 
         updateTeamHeatmap(); // Always update heatmap when selection changes
 
         if (!teamId) {
             document.getElementById("teamMembers").innerHTML = "";
-            return;
+            return; // If no team selected, clear member list
         }
 
-        // Fetch and display team members
+        // Fetch and display team members from backend
         fetch(`/team-members/?team=${teamId}`)
         .then(res => res.json())
         .then(data => {
             const div = document.getElementById("teamMembers");
-            div.innerHTML = "";
+            div.innerHTML = ""; // Clear old members
 
             if (data.status !== "ok") return;
 
+            // Display each member
             data.members.forEach(player => {
                 const p = document.createElement("div");
                 p.innerText = player.name;
@@ -407,18 +413,18 @@
     function selectZone(zoneId) {
         selectedZone = zoneId; // Store selected zone globally for shot submission
         document.getElementById("selected-zone-display").innerText =
-            "Selected Zone: " + zoneId;
+            "Selected Zone: " + zoneId; // Update UI text to see selection
     }
 
     function submitTeamShot(made) {
-        const teamId = document.getElementById("heatmapTeam").value;
+        const teamId = document.getElementById("heatmapTeam").value; // Get selected team
 
         if (!teamId || !selectedZone) {
             alert("Select team and zone!");
-            return;
+            return; // Ensure required inputs exist before sending request
         }
 
-
+        // Send shot data to backend
         fetch("/team-shot/", {
             method: "POST",
             headers: {
@@ -440,7 +446,7 @@
     }
 
     function updateTeamHeatmap() {
-        const teamId = document.getElementById("heatmapTeam").value;
+        const teamId = document.getElementById("heatmapTeam").value; // Get selected team
 
         if (!teamId) {
             document.querySelectorAll("[id^='tzone-']").forEach(z => {
@@ -449,7 +455,7 @@
         return;
         }
 
-        fetch(`/team-stats/?team=${teamId}`)
+        fetch(`/team-stats/?team=${teamId}`) // Fetch team stats from backend
         .then(res => res.json())
         .then(data => {
 
@@ -474,7 +480,7 @@
     }
 
     function updateLeaderboard() {
-        fetch("/team-leaderboard/")
+        fetch("/team-leaderboard/") // Fetch ranked teams from backend
         .then(res => res.json())
         .then(data => {
             const div = document.getElementById("leaderboard");
