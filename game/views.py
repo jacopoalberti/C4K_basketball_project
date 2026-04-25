@@ -64,7 +64,10 @@ def get_stats(request):
             return JsonResponse({"status": "error", "message": "Invalid player ID"}, status=400)
     else:
         # No player → return empty list
-        return JsonResponse([], safe=False)
+        return JsonResponse({
+            "zones": [],
+            "total_attempts": 0
+        })
 
     # Group shots by zone and calculate totals + made shots
     stats = (

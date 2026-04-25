@@ -359,6 +359,8 @@
         .then(res => res.json())
         .then(data => {
 
+            const zones = data.zones;
+
             // reset ONLY player zones
             document.querySelectorAll("[id^='pzone-']").forEach(z => {
                 z.style.backgroundColor = ""; // clear color
@@ -366,7 +368,7 @@
             });
 
             // Loop through zones returned by backend
-            data.forEach(zone => {
+            zones.forEach(zone => {
                 const btn = document.getElementById(`pzone-${zone.zone_id}`); // Find matching zone button in UI
                 if (!btn) return;
 
